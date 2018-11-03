@@ -1,0 +1,14 @@
+# -*- mode: conf -*-
+
+# Direnv dependencies.
+.envrc.cache
+.envrc.deps
+.envrc.inside
+.envrc.outside
+
+# Build time dependencies.
+Makefile
+
+# Nix/environment dependencies.
+nix/packages.nix
+shell.nix

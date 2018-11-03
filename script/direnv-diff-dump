@@ -1,0 +1,50 @@
+#!/usr/bin/env python3
+#
+# Calculate a diff between two `direnv dump` outputs, emitting it as a Bash
+# script containing `export` and `unset` statements.
+#
+# Usage: direnv-diff-dump from-dump-file to-dump-file
+#
+
+import base64
+import json
+import shlex
+import sys
+import zlib
+
+
+def load(filename):
+    # `direnv dump` creates a JSON object that maps environment variable names
+    # to their values, compresses it with zlib, then encodes it Base64 using a
+    # URL-safe character set, so we do the reverse.
+    with open(filename, "rb") as fd:
+        dump_raw = fd.read()
+    dump_z = base64.urlsafe_b64decode(dump_raw)
+    dump_b = zlib.decompress(dump_z)
+    return json.loads(dump_b)
+
+
+if __name__ == '__main__':
+    fa, fb = sys.argv[1:3]
+    a, b = load(fa), load(fb)
+
+    added, removed, changed = {}, {}, {}
+    for name in set().union(a, b):
+        if name in a and name in b:
+            va, vb = a[name], b[name]
+            if va != vb:
+                changed[name] = va, vb
+        elif name in a:
+            removed[name] = a[name]
+        elif name in b:
+            added[name] = b[name]
+
+    q = shlex.quote
+
+    for name in sorted(added):
+        print(f"export {q(name)}={q(added[name])}")
+    for name in sorted(changed):
+        va, vb = changed[name]
+        print(f"export {q(name)}={q(vb)}")
+    for name in sorted(removed):
+        print(f"unset {q(name)}")
