@@ -31,3 +31,9 @@ npm-debug.log
 .envrc.outside
 .envrc.sums
 .envrc.cache
+
+# Elm stuff
+elm-stuff/
+
+# env
+.env.sh
