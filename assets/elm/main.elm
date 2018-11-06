@@ -54,12 +54,12 @@ update msg model =
     case msg of
         DragDropMsg msg_ ->
             let
-                ( model_, result ) =
+                ( dragDropModel, result ) =
                     DragDrop.update msg_ model.dragDrop
             in
             case result of
                 Nothing ->
-                    { model | dragDrop = model_ }
+                    { model | dragDrop = dragDropModel }
 
                 Just ( dragIdx, dropIdx, pos ) ->
                     let
@@ -72,10 +72,10 @@ update msg model =
                     in
                     case insertAt of
                         Above ->
-                            { model | dragDrop = model_, ranks = moveTo model.ranks dragIdx dropIdx }
+                            { model | dragDrop = dragDropModel, ranks = moveTo model.ranks dragIdx dropIdx }
 
                         Below ->
-                            { model | dragDrop = model_, ranks = moveTo model.ranks dragIdx (dropIdx + 1) }
+                            { model | dragDrop = dragDropModel, ranks = moveTo model.ranks dragIdx (dropIdx + 1) }
 
 
 moveTo : Array a -> Int -> Int -> Array a
