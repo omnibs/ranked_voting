@@ -54,10 +54,10 @@ update msg model =
     case msg of
         DragDropMsg msg_ ->
             let
-                ( dragDropModel, result ) =
+                ( dragDropModel, dragDropEndResult ) =
                     DragDrop.update msg_ model.dragDrop
             in
-            case result of
+            case dragDropEndResult of
                 Nothing ->
                     { model | dragDrop = dragDropModel }
 
