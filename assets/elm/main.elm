@@ -49,6 +49,15 @@ type InsertPosition
     | Below
 
 
+insertPosition : Int -> Int -> InsertPosition
+insertPosition y height =
+    if toFloat y < toFloat height * 0.8 then
+        Above
+
+    else
+        Below
+
+
 update : Msg -> Model -> Model
 update msg model =
     case msg of
@@ -62,15 +71,7 @@ update msg model =
                     { model | dragDrop = dragDropModel }
 
                 Just ( dragIdx, dropIdx, pos ) ->
-                    let
-                        insertAt =
-                            if pos.y < pos.height // 2 then
-                                Above
-
-                            else
-                                Below
-                    in
-                    case insertAt of
+                    case insertPosition pos.y pos.height of
                         Above ->
                             { model | dragDrop = dragDropModel, ranks = moveTo model.ranks dragIdx dropIdx }
 
@@ -143,11 +144,12 @@ viewDiv srcIdx dropIdx droppablePosition idx candidate =
                         []
 
                     Just pos ->
-                        if pos.y < pos.height // 2 then
-                            [ style "background-color" "cyan" ]
+                        case insertPosition pos.y pos.height of
+                            Above ->
+                                [ style "background-color" "cyan" ]
 
-                        else
-                            [ style "background-color" "magenta" ]
+                            Below ->
+                                [ style "background-color" "magenta" ]
 
             else
                 []
@@ -163,11 +165,7 @@ viewDiv srcIdx dropIdx droppablePosition idx candidate =
                )
             ++ DragDrop.draggable DragDropMsg idx
         )
-        [ span [] [ text candidate.name ]
-        , text (String.fromInt (Maybe.withDefault -1 srcIdx))
-        , text (String.fromInt (Maybe.withDefault -1 dropIdx))
-        , text (String.fromInt idx)
-        ]
+        [ span [] [ text candidate.name ] ]
 
 
 main =
