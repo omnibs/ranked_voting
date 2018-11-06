@@ -1,4 +1,4 @@
-module Main exposing (Candidate, InsertPosition(..), Model, Msg(..), divStyle, find, init, insertBefore, main, moveTo, update, view, viewDiv)
+module Main exposing (Candidate, InsertPosition(..), Model, Msg(..), divStyle, init, insertBefore, main, moveTo, update, view, viewDiv)
 
 import Array as Array exposing (Array(..))
 import Browser
@@ -6,24 +6,30 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html5.DragDrop as DragDrop
 
-type Id = Id Int
+
+type Id
+    = Id Int
+
 
 type alias Candidate =
     { id : Id, name : String }
 
+
 intId : Id -> Int
-intId (Id i) = i
+intId (Id i) =
+    i
+
 
 type alias Model =
     { ranks : Array Candidate
 
     -- , unranked : Array Candidate
-    , dragDrop : DragDrop.Model Id Int
+    , dragDrop : DragDrop.Model Int Int
     }
 
 
 type Msg
-    = DragDropMsg (DragDrop.Msg Id Int)
+    = DragDropMsg (DragDrop.Msg Int Int)
 
 
 init : Model
@@ -55,52 +61,52 @@ update msg model =
                 Nothing ->
                     { model | dragDrop = model_ }
 
-                Just ( dragId, dropId, pos ) ->
+                Just ( dragIdx, dropIdx, pos ) ->
                     let
                         insertAt =
                             if pos.y < pos.height // 2 then
                                 Above
+
                             else
                                 Below
                     in
                     case insertAt of
                         Above ->
-                            { model | dragDrop = model_, ranks = moveTo model.ranks dragId dropId }
+                            { model | dragDrop = model_, ranks = moveTo model.ranks dragIdx dropIdx }
 
                         Below ->
-                            { model | dragDrop = model_, ranks = moveTo model.ranks dragId (dropId + 1) }
+                            { model | dragDrop = model_, ranks = moveTo model.ranks dragIdx (dropIdx + 1) }
 
 
-moveTo : Array Candidate -> Id -> Int -> Array Candidate
-moveTo ranks srcId destPos =
-    case find srcId ranks of
+moveTo : Array Candidate -> Int -> Int -> Array Candidate
+moveTo ranks srcIdx dstIdx =
+    case Array.get srcIdx ranks of
         Nothing ->
             ranks
 
         Just src ->
-            if destPos >= (Array.length ranks - 1) then
+            if dstIdx >= Array.length ranks then
                 ranks
-                    |> Array.filter (\{ id } -> id /= srcId)
+                    |> Array.indexedMap (\i a -> ( i, a ))
+                    |> Array.filter (\( i, a ) -> i /= srcIdx)
+                    |> Array.map Tuple.second
                     |> Array.push src
+
             else
                 ranks
                     |> Array.indexedMap (\i a -> ( i, a ))
-                    |> Array.foldr (insertBefore src destPos) []
+                    |> Array.foldr (insertBefore src dstIdx) []
                     |> Array.fromList
-
-
-find : a -> Array { r | id : a } -> Maybe { r | id : a }
-find fid ranks =
-    Array.filter (\{ id } -> id == fid) ranks
-        |> Array.get 0
 
 
 insertBefore : a -> Int -> ( Int, a ) -> List a -> List a
 insertBefore src destIdx ( idx, curr ) acc =
     if curr == src then
         acc
+
     else if idx == destIdx then
         src :: curr :: acc
+
     else
         curr :: acc
 
@@ -127,8 +133,8 @@ view model =
     div [] (Array.indexedMap (viewDiv srcId dropIdx position) model.ranks |> Array.toList)
 
 
-viewDiv : Maybe Id -> Maybe Int -> Maybe DragDrop.Position -> Int -> Candidate -> Html Msg
-viewDiv srcId dropIdx droppablePosition idx candidate =
+viewDiv : Maybe Int -> Maybe Int -> Maybe DragDrop.Position -> Int -> Candidate -> Html Msg
+viewDiv srcIdx dropIdx droppablePosition idx candidate =
     let
         highlight =
             if dropIdx |> Maybe.map ((==) idx) |> Maybe.withDefault False then
@@ -139,23 +145,26 @@ viewDiv srcId dropIdx droppablePosition idx candidate =
                     Just pos ->
                         if pos.y < pos.height // 2 then
                             [ style "background-color" "cyan" ]
+
                         else
                             [ style "background-color" "magenta" ]
+
             else
                 []
     in
     div
         (divStyle
             ++ highlight
-            ++ (if srcId /= Just candidate.id then
+            ++ (if srcIdx /= Just idx then
                     DragDrop.droppable DragDropMsg idx
+
                 else
                     []
                )
-            ++ DragDrop.draggable DragDropMsg candidate.id
+            ++ DragDrop.draggable DragDropMsg idx
         )
         [ span [] [ text candidate.name ]
-        , text (String.fromInt (Maybe.withDefault -1 (Maybe.map intId srcId)))
+        , text (String.fromInt (Maybe.withDefault -1 srcIdx))
         , text (String.fromInt (Maybe.withDefault -1 dropIdx))
         , text (String.fromInt idx)
         ]
