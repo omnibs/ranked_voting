@@ -6,30 +6,33 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html5.DragDrop as DragDrop
 
+type Id = Id Int
 
 type alias Candidate =
-    { id : Int, name : String }
+    { id : Id, name : String }
 
+intId : Id -> Int
+intId (Id i) = i
 
 type alias Model =
     { ranks : Array Candidate
 
     -- , unranked : Array Candidate
-    , dragDrop : DragDrop.Model Int Int
+    , dragDrop : DragDrop.Model Id Int
     }
 
 
 type Msg
-    = DragDropMsg (DragDrop.Msg Int Int)
+    = DragDropMsg (DragDrop.Msg Id Int)
 
 
 init : Model
 init =
     { ranks =
         Array.fromList
-            [ { id = 1, name = "Joao" }
-            , { id = 2, name = "Jose" }
-            , { id = 3, name = "Jorel" }
+            [ { id = Id 1, name = "Joao" }
+            , { id = Id 2, name = "Jose" }
+            , { id = Id 3, name = "Jorel" }
             ]
     , dragDrop = DragDrop.init
     }
@@ -68,7 +71,7 @@ update msg model =
                             { model | dragDrop = model_, ranks = moveTo model.ranks dragId (dropId + 1) }
 
 
-moveTo : Array Candidate -> Int -> Int -> Array Candidate
+moveTo : Array Candidate -> Id -> Int -> Array Candidate
 moveTo ranks srcId destPos =
     case find srcId ranks of
         Nothing ->
@@ -124,7 +127,7 @@ view model =
     div [] (Array.indexedMap (viewDiv srcId dropIdx position) model.ranks |> Array.toList)
 
 
-viewDiv : Maybe Int -> Maybe Int -> Maybe DragDrop.Position -> Int -> Candidate -> Html Msg
+viewDiv : Maybe Id -> Maybe Int -> Maybe DragDrop.Position -> Int -> Candidate -> Html Msg
 viewDiv srcId dropIdx droppablePosition idx candidate =
     let
         highlight =
@@ -152,7 +155,7 @@ viewDiv srcId dropIdx droppablePosition idx candidate =
             ++ DragDrop.draggable DragDropMsg candidate.id
         )
         [ span [] [ text candidate.name ]
-        , text (String.fromInt (Maybe.withDefault -1 srcId))
+        , text (String.fromInt (Maybe.withDefault -1 (Maybe.map intId srcId)))
         , text (String.fromInt (Maybe.withDefault -1 dropIdx))
         , text (String.fromInt idx)
         ]
