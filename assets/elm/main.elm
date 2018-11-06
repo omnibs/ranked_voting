@@ -153,6 +153,9 @@ viewDiv srcIdx dropIdx droppablePosition idx candidate =
 
             else
                 []
+
+        candidateName =
+            candidate.name ++ " (" ++ String.fromInt (idx + 1) ++ ")"
     in
     div
         (divStyle
@@ -165,7 +168,7 @@ viewDiv srcIdx dropIdx droppablePosition idx candidate =
                )
             ++ DragDrop.draggable DragDropMsg idx
         )
-        [ span [] [ text candidate.name ] ]
+        [ span [] [ text candidateName ] ]
 
 
 main =
