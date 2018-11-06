@@ -78,7 +78,7 @@ update msg model =
                             { model | dragDrop = model_, ranks = moveTo model.ranks dragIdx (dropIdx + 1) }
 
 
-moveTo : Array Candidate -> Int -> Int -> Array Candidate
+moveTo : Array a -> Int -> Int -> Array a
 moveTo ranks srcIdx dstIdx =
     case Array.get srcIdx ranks of
         Nothing ->
