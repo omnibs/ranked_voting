@@ -1,4 +1,4 @@
-module Main exposing (Candidate, InsertPosition(..), Model, Msg(..), divStyle, init, insertBefore, main, moveTo, update, view, viewDiv)
+module Main exposing (Candidate, InsertPosition(..), Model, Msg(..), cardStyle, init, insertBefore, main, moveTo, update, view, viewCard)
 
 import Array as Array exposing (Array(..))
 import Browser
@@ -112,10 +112,49 @@ insertBefore src destIdx ( idx, curr ) acc =
         curr :: acc
 
 
-divStyle =
-    [ style "border" "1px solid black"
-    , style "padding" "50px"
+columnStyle =
+    [ style "width" "300px"
+    , style "margin" "0 4px"
+    , style "height" "100%"
+    , style "box-sizing" "border-box"
+    , style "display" "inline-block"
+    , style "vertical-align" "top"
+    , style "white-space" "nowrap"
+    ]
+
+
+columnContent =
+    [ style "background-color" "#dfe3e6"
+    , style "border-radius" "3px"
+    , style "box-sizing" "border-box"
+    , style "display" "flex"
+    , style "flex-direction" "column"
+    , style "max-height" "100%"
+    , style "position" "relative"
+    , style "white-space" "normal"
+    ]
+
+
+listHeader =
+    [ style "flex" "0 0 auto"
+    , style "padding" "10px 8px 8px"
+    , style "position" "relative"
+    , style "min-height" "20px"
     , style "text-align" "center"
+    , style "font-weight" "bold"
+    , style "color" "#17394d"
+    ]
+
+
+listStyle =
+    [ style "flex" "1 1 auto"
+    , style "margin-bottom" "0"
+    , style "overflow-y" "auto"
+    , style "overflow-x" "hidden"
+    , style "margin" "0 4px"
+    , style "padding" "0 4px"
+    , style "z-index" "1"
+    , style "min-height" "0"
     ]
 
 
@@ -131,11 +170,49 @@ view model =
         position =
             DragDrop.getDroppablePosition model.dragDrop
     in
-    div [] (Array.indexedMap (viewDiv srcId dropIdx position) model.ranks |> Array.toList)
+    div columnStyle
+        [ div columnContent
+            [ div listHeader [ text "Candidates" ]
+            , div listStyle (Array.indexedMap (viewCard srcId dropIdx position) model.ranks |> Array.toList)
+            ]
+        ]
 
 
-viewDiv : Maybe Int -> Maybe Int -> Maybe DragDrop.Position -> Int -> Candidate -> Html Msg
-viewDiv srcIdx dropIdx droppablePosition idx candidate =
+cardStyle =
+    [ style "border-radius" "3px"
+    , style "background-color" "#fff"
+    , style "box-shadow" "0 1px 0 rgba(9,45,66,.25)"
+    , style "cursor" "pointer"
+    , style "margin-bottom" "8px"
+    , style "max-width" "300px"
+    , style "min-height" "20px"
+    , style "position" "relative"
+    , style "text-decoration" "none"
+    , style "z-index" "0"
+    ]
+
+
+cardDetailsStyle =
+    [ style "overflow" "hidden"
+    , style "padding" "10px 10px 5px"
+    , style "position" "relative"
+    , style "z-index" "10"
+    ]
+
+
+cardNameStyle =
+    [ style "clear" "both"
+    , style "display" "block"
+    , style "margin" "0 0 4px"
+    , style "overflow" "hidden"
+    , style "text-decoration" "none"
+    , style "word-wrap" "break-word"
+    , style "color" "#17394d"
+    ]
+
+
+viewCard : Maybe Int -> Maybe Int -> Maybe DragDrop.Position -> Int -> Candidate -> Html Msg
+viewCard srcIdx dropIdx droppablePosition idx candidate =
     let
         highlight =
             if dropIdx |> Maybe.map ((==) idx) |> Maybe.withDefault False then
@@ -158,7 +235,7 @@ viewDiv srcIdx dropIdx droppablePosition idx candidate =
             candidate.name ++ " (" ++ String.fromInt (idx + 1) ++ ")"
     in
     div
-        (divStyle
+        (cardStyle
             ++ highlight
             ++ (if srcIdx /= Just idx then
                     DragDrop.droppable DragDropMsg idx
@@ -168,7 +245,10 @@ viewDiv srcIdx dropIdx droppablePosition idx candidate =
                )
             ++ DragDrop.draggable DragDropMsg idx
         )
-        [ span [] [ text candidateName ] ]
+        [ div cardDetailsStyle
+            [ span cardNameStyle [ text candidateName ]
+            ]
+        ]
 
 
 main =
