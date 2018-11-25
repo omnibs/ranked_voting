@@ -37,9 +37,9 @@ init : Model
 init =
     { ranks =
         Array.fromList
-            [ { id = Id 1, name = "Joao" }
-            , { id = Id 2, name = "Jose" }
-            , { id = Id 3, name = "Jorel" }
+            [ { id = Id 1, name = "Alice" }
+            , { id = Id 2, name = "Bob" }
+            , { id = Id 3, name = "Carol" }
             ]
     , dragDrop = DragDrop.init
     }
@@ -213,24 +213,13 @@ cardNameStyle =
 
 
 fadeBottomStyle =
-    [ style "position" "absolute"
-    , style "bottom" "0px"
-    , style "display" "block"
-    , style "width" "100%"
-    , style "height" "18px"
-    , style "background-image" "linear-gradient(to bottom, rgba(223, 227, 230, 0), rgba(223, 227, 230, 0.9) 100%)"
-    , style "z-index" "11"
+    [ style "background-image" "linear-gradient(to bottom, rgba(223, 227, 230, 0), rgba(223, 227, 230, 0.9) 100%)"
+    , style "box-shadow" "none"
     ]
 
 
 fadeTopStyle =
-    [ style "position" "absolute"
-    , style "top" "0px"
-    , style "display" "block"
-    , style "width" "100%"
-    , style "height" "37px"
-    , style "background-image" "linear-gradient(to bottom, rgba(223, 227, 230, 0.9), rgba(223, 227, 230, 0) 100%)"
-    , style "z-index" "11"
+    [ style "background-image" "linear-gradient(to bottom, rgba(223, 227, 230, 0.9), rgba(223, 227, 230, 0) 100%)"
     ]
 
 
@@ -248,27 +237,27 @@ cardState idx dragIdx dropIdx maybeInsertPosition =
             Plain
 
         Just Above ->
-            if Just idx == dropIdx then
+            if Just idx == dragIdx then
+                Dragging
+
+            else if Just idx == dropIdx then
                 DropIsPrev
 
             else if Just (idx + 1) == dropIdx then
                 DropIsNext
 
-            else if Just idx == dragIdx then
-                Dragging
-
             else
                 Plain
 
         Just Below ->
-            if Just idx == dropIdx then
+            if Just idx == dragIdx then
+                Dragging
+
+            else if Just idx == dropIdx then
                 DropIsNext
 
             else if Just (idx - 1) == dropIdx then
                 DropIsPrev
-
-            else if Just idx == dragIdx then
-                Dragging
 
             else
                 Plain
@@ -284,26 +273,10 @@ cardStyleFor state =
             cardStyle ++ [ style "background-color" "rgba(255,255,255,0.37)" ]
 
         DropIsPrev ->
-            cardStyle
+            cardStyle ++ fadeTopStyle
 
         DropIsNext ->
-            cardStyle
-
-
-maybeCardFader : CardState -> List (Html Msg)
-maybeCardFader state =
-    case state of
-        Plain ->
-            []
-
-        Dragging ->
-            []
-
-        DropIsPrev ->
-            [ div fadeTopStyle [] ]
-
-        DropIsNext ->
-            [ div fadeBottomStyle [] ]
+            cardStyle ++ fadeBottomStyle
 
 
 viewCard : Maybe Int -> Maybe Int -> Maybe DragDrop.Position -> Int -> Candidate -> Html Msg
@@ -318,29 +291,25 @@ viewCard dragIdx dropIdx droppablePosition idx candidate =
 
         candidateName =
             candidate.name
-                ++ " ("
-                ++ String.fromInt (idx + 1)
-                ++ ")"
-                ++ " ["
-                ++ Debug.toString state
-                ++ "]"
     in
     div
-        (cardStyleFor state
+        ([ style "overflow" "auto" ]
             ++ (if dragIdx /= Just idx then
                     DragDrop.droppable DragDropMsg idx
 
                 else
                     []
                )
-            ++ DragDrop.draggable DragDropMsg idx
+            ++ DragDrop.draggable DragDropMsg
+                idx
         )
-        ([ div cardDetailsStyle
-            [ span cardNameStyle [ text candidateName ]
+        [ div
+            (cardStyleFor state)
+            [ div cardDetailsStyle
+                [ span cardNameStyle [ text candidateName ]
+                ]
             ]
-         ]
-            ++ maybeCardFader state
-        )
+        ]
 
 
 main =
