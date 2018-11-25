@@ -2,6 +2,7 @@ module Main exposing (Candidate, InsertPosition(..), Model, Msg(..), cardStyle, 
 
 import Array as Array exposing (Array(..))
 import Browser
+import Debug
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html5.DragDrop as DragDrop
@@ -51,7 +52,7 @@ type InsertPosition
 
 insertPosition : Int -> Int -> InsertPosition
 insertPosition y height =
-    if toFloat y < toFloat height * 0.8 then
+    if toFloat y < toFloat height * 0.5 then
         Above
 
     else
@@ -211,33 +212,122 @@ cardNameStyle =
     ]
 
 
-viewCard : Maybe Int -> Maybe Int -> Maybe DragDrop.Position -> Int -> Candidate -> Html Msg
-viewCard srcIdx dropIdx droppablePosition idx candidate =
-    let
-        highlight =
-            if dropIdx |> Maybe.map ((==) idx) |> Maybe.withDefault False then
-                case droppablePosition of
-                    Nothing ->
-                        []
+fadeBottomStyle =
+    [ style "position" "absolute"
+    , style "bottom" "0px"
+    , style "display" "block"
+    , style "width" "100%"
+    , style "height" "18px"
+    , style "background-image" "linear-gradient(to bottom, rgba(223, 227, 230, 0), rgba(223, 227, 230, 0.9) 100%)"
+    , style "z-index" "11"
+    ]
 
-                    Just pos ->
-                        case insertPosition pos.y pos.height of
-                            Above ->
-                                [ style "background-color" "cyan" ]
 
-                            Below ->
-                                [ style "background-color" "magenta" ]
+fadeTopStyle =
+    [ style "position" "absolute"
+    , style "top" "0px"
+    , style "display" "block"
+    , style "width" "100%"
+    , style "height" "37px"
+    , style "background-image" "linear-gradient(to bottom, rgba(223, 227, 230, 0.9), rgba(223, 227, 230, 0) 100%)"
+    , style "z-index" "11"
+    ]
+
+
+type CardState
+    = Plain
+    | Dragging
+    | DropIsNext
+    | DropIsPrev
+
+
+cardState : Int -> Maybe Int -> Maybe Int -> Maybe InsertPosition -> CardState
+cardState idx dragIdx dropIdx maybeInsertPosition =
+    case maybeInsertPosition of
+        Nothing ->
+            Plain
+
+        Just Above ->
+            if Just idx == dropIdx then
+                DropIsPrev
+
+            else if Just (idx + 1) == dropIdx then
+                DropIsNext
+
+            else if Just idx == dragIdx then
+                Dragging
 
             else
-                []
+                Plain
+
+        Just Below ->
+            if Just idx == dropIdx then
+                DropIsNext
+
+            else if Just (idx - 1) == dropIdx then
+                DropIsPrev
+
+            else if Just idx == dragIdx then
+                Dragging
+
+            else
+                Plain
+
+
+cardStyleFor : CardState -> List (Attribute msg)
+cardStyleFor state =
+    case state of
+        Plain ->
+            cardStyle
+
+        Dragging ->
+            cardStyle ++ [ style "background-color" "rgba(255,255,255,0.37)" ]
+
+        DropIsPrev ->
+            cardStyle
+
+        DropIsNext ->
+            cardStyle
+
+
+maybeCardFader : CardState -> List (Html Msg)
+maybeCardFader state =
+    case state of
+        Plain ->
+            []
+
+        Dragging ->
+            []
+
+        DropIsPrev ->
+            [ div fadeTopStyle [] ]
+
+        DropIsNext ->
+            [ div fadeBottomStyle [] ]
+
+
+viewCard : Maybe Int -> Maybe Int -> Maybe DragDrop.Position -> Int -> Candidate -> Html Msg
+viewCard dragIdx dropIdx droppablePosition idx candidate =
+    let
+        position =
+            droppablePosition
+                |> Maybe.map (\pos -> insertPosition pos.y pos.height)
+
+        state =
+            cardState idx dragIdx dropIdx position
 
         candidateName =
-            candidate.name ++ " (" ++ String.fromInt (idx + 1) ++ ")"
+            candidate.name
+                ++ " ("
+                ++ String.fromInt (idx + 1)
+                ++ ")"
+                ++ " ["
+                ++ Debug.toString state
+                ++ "]"
     in
     div
-        (cardStyle
-            ++ highlight
-            ++ (if srcIdx /= Just idx then
+        (cardStyleFor state
+            ++ (if dragIdx /= Just idx then
                     DragDrop.droppable DragDropMsg idx
 
                 else
@@ -245,10 +335,12 @@ viewCard srcIdx dropIdx droppablePosition idx candidate =
                )
             ++ DragDrop.draggable DragDropMsg idx
         )
-        [ div cardDetailsStyle
+        ([ div cardDetailsStyle
             [ span cardNameStyle [ text candidateName ]
             ]
-        ]
+         ]
+            ++ maybeCardFader state
+        )
 
 
 main =
