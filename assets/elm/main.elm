@@ -6,6 +6,7 @@ import Debug
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html5.DragDrop as DragDrop
+import Keyboard exposing (RawKey)
 
 
 type Id
@@ -23,26 +24,46 @@ intId (Id i) =
 
 type alias Model =
     { ranks : Array Candidate
-
-    -- , unranked : Array Candidate
     , dragDrop : DragDrop.Model Int Int
+    , keyboardCursor : CursorState Int
     }
+
+
+type CursorState a
+    = Off
+    | On a
+    | Moving a
 
 
 type Msg
     = DragDropMsg (DragDrop.Msg Int Int)
+    | KeyUp RawKey
+    | KeyDown RawKey
 
 
-init : Model
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    Sub.batch
+        [ Keyboard.downs KeyDown
+        , Keyboard.ups KeyUp
+
+        -- , windowBlurs ClearKeys
+        ]
+
+
+init : ( Model, Cmd Msg )
 init =
-    { ranks =
-        Array.fromList
-            [ { id = Id 1, name = "Alice" }
-            , { id = Id 2, name = "Bob" }
-            , { id = Id 3, name = "Carol" }
-            ]
-    , dragDrop = DragDrop.init
-    }
+    ( { ranks =
+            Array.fromList
+                [ { id = Id 1, name = "Alice" }
+                , { id = Id 2, name = "Bob" }
+                , { id = Id 3, name = "Carol" }
+                ]
+      , dragDrop = DragDrop.init
+      , keyboardCursor = Off
+      }
+    , Cmd.none
+    )
 
 
 type InsertPosition
@@ -54,12 +75,11 @@ insertPosition : Int -> Int -> InsertPosition
 insertPosition y height =
     if toFloat y < toFloat height * 0.5 then
         Above
-
     else
         Below
 
 
-update : Msg -> Model -> Model
+update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         DragDropMsg msg_ ->
@@ -69,15 +89,115 @@ update msg model =
             in
             case dragDropEndResult of
                 Nothing ->
-                    { model | dragDrop = dragDropModel }
+                    ( { model | dragDrop = dragDropModel }, Cmd.none )
 
                 Just ( dragIdx, dropIdx, pos ) ->
                     case insertPosition pos.y pos.height of
                         Above ->
-                            { model | dragDrop = dragDropModel, ranks = moveTo model.ranks dragIdx dropIdx }
+                            ( { model | dragDrop = dragDropModel, ranks = moveTo model.ranks dragIdx dropIdx }, Cmd.none )
 
                         Below ->
-                            { model | dragDrop = dragDropModel, ranks = moveTo model.ranks dragIdx (dropIdx + 1) }
+                            ( { model | dragDrop = dragDropModel, ranks = moveTo model.ranks dragIdx (dropIdx + 1) }, Cmd.none )
+
+        KeyUp rawKey ->
+            case Keyboard.modifierKey rawKey of
+                Nothing ->
+                    ( model, Cmd.none )
+
+                Just Keyboard.Shift ->
+                    ( { model | keyboardCursor = stopMoving model.keyboardCursor }, Cmd.none )
+
+                Just key ->
+                    Debug.log (Debug.toString key) ( model, Cmd.none )
+
+        KeyDown rawKey ->
+            case Keyboard.oneOf [ Keyboard.navigationKey, Keyboard.modifierKey ] rawKey of
+                Nothing ->
+                    ( model, Cmd.none )
+
+                Just Keyboard.ArrowUp ->
+                    let
+                        ( movement, cursor ) =
+                            keyUp model.keyboardCursor
+                    in
+                    ( { model | keyboardCursor = cursor }, Cmd.none )
+
+                Just Keyboard.ArrowDown ->
+                    let
+                        ( movement, cursor ) =
+                            keyDown model.keyboardCursor (Array.length model.ranks)
+                    in
+                    ( { model | keyboardCursor = cursor }, Cmd.none )
+
+                Just Keyboard.Shift ->
+                    ( { model | keyboardCursor = startMoving model.keyboardCursor }, Cmd.none )
+
+                Just key ->
+                    Debug.log (Debug.toString key) ( model, Cmd.none )
+
+
+startMoving : CursorState Int -> CursorState Int
+startMoving state =
+    case state of
+        Off ->
+            Moving 0
+
+        On n ->
+            Moving n
+
+        Moving n ->
+            Moving n
+
+
+stopMoving : CursorState Int -> CursorState Int
+stopMoving state =
+    case state of
+        Off ->
+            Off
+
+        On n ->
+            On n
+
+        Moving n ->
+            On n
+
+
+keyUp : CursorState Int -> ( Maybe ( Int, Int ), CursorState Int )
+keyUp maybeCurrentIndex =
+    case maybeCurrentIndex of
+        Off ->
+            ( Nothing, On 0 )
+
+        On 0 ->
+            ( Nothing, On 0 )
+
+        On n ->
+            ( Nothing, On (n - 1) )
+
+        Moving 0 ->
+            ( Nothing, Moving 0 )
+
+        Moving n ->
+            ( Just ( n, n - 1 ), Moving (n - 1) )
+
+
+keyDown : CursorState Int -> Int -> ( Maybe ( Int, Int ), CursorState Int )
+keyDown maybeCurrentIndex max =
+    case maybeCurrentIndex of
+        Off ->
+            ( Nothing, On 0 )
+
+        On n ->
+            if n >= max then
+                ( Nothing, On max )
+            else
+                ( Nothing, On (n + 1) )
+
+        Moving n ->
+            if n >= max then
+                ( Nothing, On max )
+            else
+                ( Just ( n, n + 1 ), Moving (n + 1) )
 
 
 moveTo : Array a -> Int -> Int -> Array a
@@ -93,7 +213,6 @@ moveTo ranks srcIdx dstIdx =
                     |> Array.filter (\( i, a ) -> i /= srcIdx)
                     |> Array.map Tuple.second
                     |> Array.push src
-
             else
                 ranks
                     |> Array.indexedMap (\i a -> ( i, a ))
@@ -174,7 +293,7 @@ view model =
     div columnStyle
         [ div columnContent
             [ div listHeader [ text "Candidates" ]
-            , div listStyle (Array.indexedMap (viewCard srcId dropIdx position) model.ranks |> Array.toList)
+            , div listStyle (Array.indexedMap (viewCard srcId dropIdx position model.keyboardCursor) model.ranks |> Array.toList)
             ]
         ]
 
@@ -228,37 +347,47 @@ type CardState
     | Dragging
     | DropIsNext
     | DropIsPrev
+    | CursorOn
+    | CursorMoving
 
 
-cardState : Int -> Maybe Int -> Maybe Int -> Maybe InsertPosition -> CardState
-cardState idx dragIdx dropIdx maybeInsertPosition =
+cardState : Int -> Maybe Int -> Maybe Int -> Maybe InsertPosition -> CursorState Int -> CardState
+cardState idx dragIdx dropIdx maybeInsertPosition cursorState =
     case maybeInsertPosition of
         Nothing ->
-            Plain
+            case cursorState of
+                Off ->
+                    Plain
+
+                On n ->
+                    if n == idx then
+                        CursorOn
+                    else
+                        Plain
+
+                Moving n ->
+                    if n == idx then
+                        CursorMoving
+                    else
+                        Plain
 
         Just Above ->
             if Just idx == dragIdx then
                 Dragging
-
             else if Just idx == dropIdx then
                 DropIsPrev
-
             else if Just (idx + 1) == dropIdx then
                 DropIsNext
-
             else
                 Plain
 
         Just Below ->
             if Just idx == dragIdx then
                 Dragging
-
             else if Just idx == dropIdx then
                 DropIsNext
-
             else if Just (idx - 1) == dropIdx then
                 DropIsPrev
-
             else
                 Plain
 
@@ -278,16 +407,22 @@ cardStyleFor state =
         DropIsNext ->
             cardStyle ++ fadeBottomStyle
 
+        CursorOn ->
+            cardStyle ++ [ style "border" "3px solid blue" ]
 
-viewCard : Maybe Int -> Maybe Int -> Maybe DragDrop.Position -> Int -> Candidate -> Html Msg
-viewCard dragIdx dropIdx droppablePosition idx candidate =
+        CursorMoving ->
+            cardStyle ++ [ style "border" "3px solid purple" ]
+
+
+viewCard : Maybe Int -> Maybe Int -> Maybe DragDrop.Position -> CursorState Int -> Int -> Candidate -> Html Msg
+viewCard dragIdx dropIdx droppablePosition cursorState idx candidate =
     let
         position =
             droppablePosition
                 |> Maybe.map (\pos -> insertPosition pos.y pos.height)
 
         state =
-            cardState idx dragIdx dropIdx position
+            cardState idx dragIdx dropIdx position cursorState
 
         candidateName =
             candidate.name
@@ -296,7 +431,6 @@ viewCard dragIdx dropIdx droppablePosition idx candidate =
         ([ style "overflow" "auto" ]
             ++ (if dragIdx /= Just idx then
                     DragDrop.droppable DragDropMsg idx
-
                 else
                     []
                )
@@ -312,9 +446,11 @@ viewCard dragIdx dropIdx droppablePosition idx candidate =
         ]
 
 
+main : Program () Model Msg
 main =
-    Browser.sandbox
-        { init = init
+    Browser.element
+        { init = \_ -> init
         , update = update
         , view = view
+        , subscriptions = subscriptions
         }
