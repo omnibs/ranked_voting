@@ -223,11 +223,13 @@ moveTo ranks srcIdx dstIdx =
 insertBefore : a -> Int -> ( Int, a ) -> List a -> List a
 insertBefore src destIdx ( idx, curr ) acc =
     if curr == src then
-        acc
-
+        -- check for case where we're reinserting in the same position
+        if destIdx == idx then
+            curr :: acc
+        else
+            acc
     else if idx == destIdx then
         src :: curr :: acc
-
     else
         curr :: acc
 
