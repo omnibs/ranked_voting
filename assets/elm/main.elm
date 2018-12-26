@@ -119,15 +119,32 @@ update msg model =
                     let
                         ( movement, cursor ) =
                             keyUp model.keyboardCursor
+
+                        ranks =
+                            case movement of
+                                Nothing ->
+                                    model.ranks
+
+                                Just ( src, dst ) ->
+                                    moveTo model.ranks src dst
                     in
-                    ( { model | keyboardCursor = cursor }, Cmd.none )
+                    ( { model | keyboardCursor = cursor, ranks = ranks }, Cmd.none )
 
                 Just Keyboard.ArrowDown ->
                     let
                         ( movement, cursor ) =
                             keyDown model.keyboardCursor (Array.length model.ranks)
+
+                        ranks =
+                            case movement of
+                                Nothing ->
+                                    model.ranks
+
+                                Just ( src, dst ) ->
+                                    -- dst + 1 because we move it below the next position
+                                    moveTo model.ranks src (dst + 1)
                     in
-                    ( { model | keyboardCursor = cursor }, Cmd.none )
+                    ( { model | keyboardCursor = cursor, ranks = ranks }, Cmd.none )
 
                 Just Keyboard.Shift ->
                     ( { model | keyboardCursor = startMoving model.keyboardCursor }, Cmd.none )
