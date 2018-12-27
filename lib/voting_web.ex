@@ -21,15 +21,16 @@ defmodule VotingWeb do
     quote do
       use Phoenix.Controller, namespace: VotingWeb
       import Plug.Conn
-      import VotingWeb.Router.Helpers
+      alias VotingWeb.Router.Helpers, as: Routes
       import VotingWeb.Gettext
     end
   end
 
   def view do
     quote do
-      use Phoenix.View, root: "lib/voting_web/templates",
-                        namespace: VotingWeb
+      use Phoenix.View,
+        root: "lib/voting_web/templates",
+        namespace: VotingWeb
 
       # Import convenience functions from controllers
       import Phoenix.Controller, only: [get_flash: 2, view_module: 1]
@@ -37,7 +38,7 @@ defmodule VotingWeb do
       # Use all HTML functionality (forms, tags, etc)
       use Phoenix.HTML
 
-      import VotingWeb.Router.Helpers
+      alias VotingWeb.Router.Helpers, as: Routes
       import VotingWeb.ErrorHelpers
       import VotingWeb.Gettext
     end
